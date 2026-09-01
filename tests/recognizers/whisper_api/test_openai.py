@@ -1,7 +1,6 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-import respx
 
 from speech_recognition import AudioData, Recognizer
 from speech_recognition.recognizers.whisper_api import openai
@@ -44,70 +43,95 @@ def test_transcribe_with_openai_whisper(setenv_openai_api_key):
     audio_data.get_wav_data.assert_called_once()
 
 
-@respx.mock(assert_all_called=True, assert_all_mocked=True)
-def test_transcribe_with_gpt_transcribe(respx_mock, setenv_openai_api_key):
-    respx_mock.post(
-        "https://api.openai.com/v1/audio/transcriptions",
-        data__contains={"model": "gpt-transcribe"},
-    ).respond(
-        200,
-        json={
-            "text": "Transcription by GPT Transcribe",
-            "languages": [{"code": "en"}],
-        },
-    )
+def test_transcribe_with_gpt_transcribe(setenv_openai_api_key):
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        assert request.method == "POST"
+        assert request.url == "https://api.openai.com/v1/audio/transcriptions"
+        assert b'name="model"' in request.content
+        assert b"gpt-transcribe" in request.content
+
+        return httpx2.Response(
+            200,
+            json={
+                "text": "Transcription by GPT Transcribe",
+                "languages": [{"code": "en"}],
+            },
+            request=request,
+        )
+
+    transport = httpx2.MockTransport(handler)
 
     audio_data = MagicMock(spec=AudioData)
     audio_data.get_wav_data.return_value = b"audio_data"
 
-    actual = openai.recognize(
-        MagicMock(spec=Recognizer), audio_data, model="gpt-transcribe"
-    )
+    with (
+        openai_sdk.DefaultHttpx2Client(transport=transport) as http_client,
+        patch("openai.OpenAI", return_value=openai_sdk.OpenAI(http_client=http_client)),
+    ):
+        actual = openai.recognize(
+            MagicMock(spec=Recognizer), audio_data, model="gpt-transcribe"
+        )
 
     assert actual == "Transcription by GPT Transcribe"
     audio_data.get_wav_data.assert_called_once()
 
 
-@respx.mock(assert_all_called=True, assert_all_mocked=True)
-def test_transcribe_with_specified_language(respx_mock, setenv_openai_api_key):
+def test_transcribe_with_specified_language(setenv_openai_api_key):
     # https://github.com/Uberi/speech_recognition/issues/681
-    respx_mock.post(
-        "https://api.openai.com/v1/audio/transcriptions",
-        data__contains={"language": "en"},
-    ).respond(
-        200,
-        json={"text": "English transcription"},
-    )
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        assert request.method == "POST"
+        assert request.url == "https://api.openai.com/v1/audio/transcriptions"
+        assert b'name="language"' in request.content
+        assert b"\r\n\r\nen\r\n" in request.content
+
+        return httpx2.Response(
+            200,
+            json={"text": "English transcription"},
+            request=request,
+        )
+
+    transport = httpx2.MockTransport(handler)
 
     audio_data = MagicMock(spec=AudioData)
     audio_data.get_wav_data.return_value = b"english_audio"
 
-    actual = openai.recognize(
-        MagicMock(spec=Recognizer), audio_data, language="en"
-    )
+    with (
+        openai_sdk.DefaultHttpx2Client(transport=transport) as http_client,
+        patch("openai.OpenAI", return_value=openai_sdk.OpenAI(http_client=http_client)),
+    ):
+        actual = openai.recognize(MagicMock(spec=Recognizer), audio_data, language="en")
 
     assert actual == "English transcription"
 
 
-@respx.mock(assert_all_called=True, assert_all_mocked=True)
-def test_transcribe_with_specified_prompt(respx_mock, setenv_openai_api_key):
+def test_transcribe_with_specified_prompt(setenv_openai_api_key):
     # https://github.com/Uberi/speech_recognition/pull/676
-    respx_mock.post(
-        "https://api.openai.com/v1/audio/transcriptions",
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        assert request.method == "POST"
+        assert request.url == "https://api.openai.com/v1/audio/transcriptions"
+        assert b'name="prompt"' in request.content
         # ref: https://cookbook.openai.com/examples/whisper_prompting_guide
-        data__contains={"prompt": "Glossary: Aimee, Shawn, BBQ"},
-    ).respond(
-        200,
-        json={"text": "Prompted transcription"},
-    )
+        assert b"Glossary: Aimee, Shawn, BBQ" in request.content
+
+        return httpx2.Response(
+            200,
+            json={"text": "Prompted transcription"},
+            request=request,
+        )
+
+    transport = httpx2.MockTransport(handler)
 
     audio_data = MagicMock(spec=AudioData)
     audio_data.get_wav_data.return_value = b"audio_data"
 
-    actual = openai.recognize(
-        MagicMock(spec=Recognizer),
-        audio_data,
-        prompt="Glossary: Aimee, Shawn, BBQ",
-    )
+    with (
+        openai_sdk.DefaultHttpx2Client(transport=transport) as http_client,
+        patch("openai.OpenAI", return_value=openai_sdk.OpenAI(http_client=http_client)),
+    ):
+        actual = openai.recognize(
+            MagicMock(spec=Recognizer),
+            audio_data,
+            prompt="Glossary: Aimee, Shawn, BBQ",
+        )
 
     assert actual == "Prompted transcription"
