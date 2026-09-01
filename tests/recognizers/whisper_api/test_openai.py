@@ -1,3 +1,4 @@
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -5,16 +6,20 @@ import pytest
 from speech_recognition import AudioData, Recognizer
 from speech_recognition.recognizers.whisper_api import openai
 
-httpx2 = pytest.importorskip("httpx2")
 openai_sdk = pytest.importorskip("openai")
+
+if TYPE_CHECKING:
+    import httpx2
+else:
+    httpx2 = pytest.importorskip("httpx2")
 
 
 @pytest.fixture
-def setenv_openai_api_key(monkeypatch):
+def setenv_openai_api_key(monkeypatch) -> None:
     monkeypatch.setenv("OPENAI_API_KEY", "sk_openai_api_key")
 
 
-def test_transcribe_with_openai_whisper(setenv_openai_api_key):
+def test_transcribe_with_openai_whisper(setenv_openai_api_key: None) -> None:
     # ref: https://github.com/openai/openai-agents-python/blob/v0.22.0/tests/models/test_openai_responses.py#L81
     requests: list[httpx2.Request] = []
 
@@ -48,7 +53,7 @@ def test_transcribe_with_openai_whisper(setenv_openai_api_key):
     audio_data.get_wav_data.assert_called_once()
 
 
-def test_transcribe_with_gpt_transcribe(setenv_openai_api_key):
+def test_transcribe_with_gpt_transcribe(setenv_openai_api_key: None) -> None:
     requests: list[httpx2.Request] = []
 
     def handler(request: httpx2.Request) -> httpx2.Response:
@@ -85,7 +90,7 @@ def test_transcribe_with_gpt_transcribe(setenv_openai_api_key):
     audio_data.get_wav_data.assert_called_once()
 
 
-def test_transcribe_with_specified_language(setenv_openai_api_key):
+def test_transcribe_with_specified_language(setenv_openai_api_key: None) -> None:
     # https://github.com/Uberi/speech_recognition/issues/681
     requests: list[httpx2.Request] = []
 
@@ -117,7 +122,7 @@ def test_transcribe_with_specified_language(setenv_openai_api_key):
     assert len(requests) == 1
 
 
-def test_transcribe_with_specified_prompt(setenv_openai_api_key):
+def test_transcribe_with_specified_prompt(setenv_openai_api_key: None) -> None:
     requests: list[httpx2.Request] = []
 
     # https://github.com/Uberi/speech_recognition/pull/676
