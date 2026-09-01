@@ -69,10 +69,7 @@ faster-whisper = [
   "faster-whisper",
   "soundfile",
 ]
-openai = [
-  "openai < 3",
-  "httpx < 0.28",
-]
+openai = ["openai"]
 groq = [
   "groq",
   "httpx < 0.28",

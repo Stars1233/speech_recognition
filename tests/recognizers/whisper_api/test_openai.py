@@ -1,13 +1,13 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
-import httpx
 import pytest
 import respx
 
 from speech_recognition import AudioData, Recognizer
 from speech_recognition.recognizers.whisper_api import openai
 
-pytest.importorskip("openai")
+httpx2 = pytest.importorskip("httpx2")
+openai_sdk = pytest.importorskip("openai")
 
 
 @pytest.fixture
@@ -15,23 +15,30 @@ def setenv_openai_api_key(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "sk_openai_api_key")
 
 
-@respx.mock(assert_all_called=True, assert_all_mocked=True)
-def test_transcribe_with_openai_whisper(respx_mock, setenv_openai_api_key):
-    respx_mock.post(
-        "https://api.openai.com/v1/audio/transcriptions",
-        headers__contains={"Authorization": "Bearer sk_openai_api_key"},
-        data__contains={"model": "whisper-1"},
-    ).mock(
-        return_value=httpx.Response(
+def test_transcribe_with_openai_whisper(setenv_openai_api_key):
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        assert request.method == "POST"
+        assert request.url == "https://api.openai.com/v1/audio/transcriptions"
+        assert request.headers["Authorization"] == "Bearer sk_openai_api_key"
+        assert b'name="model"' in request.content
+        assert b"whisper-1" in request.content
+
+        return httpx2.Response(
             200,
             json={"text": "Transcription by OpenAI Whisper"},
+            request=request,
         )
-    )
+
+    transport = httpx2.MockTransport(handler)
 
     audio_data = MagicMock(spec=AudioData)
     audio_data.get_wav_data.return_value = b"audio_data"
 
-    actual = openai.recognize(MagicMock(spec=Recognizer), audio_data)
+    with (
+        openai_sdk.DefaultHttpx2Client(transport=transport) as http_client,
+        patch("openai.OpenAI", return_value=openai_sdk.OpenAI(http_client=http_client)),
+    ):
+        actual = openai.recognize(MagicMock(spec=Recognizer), audio_data)
 
     assert actual == "Transcription by OpenAI Whisper"
     audio_data.get_wav_data.assert_called_once()
