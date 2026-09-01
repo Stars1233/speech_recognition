@@ -38,7 +38,7 @@ def test_transcribe_with_openai_whisper(setenv_openai_api_key):
     audio_data.get_wav_data.return_value = b"audio_data"
 
     with (
-        openai_sdk.DefaultHttpx2Client(transport=transport) as http_client,
+        httpx2.Client(transport=transport) as http_client,
         patch("openai.OpenAI", return_value=openai_sdk.OpenAI(http_client=http_client)),
     ):
         actual = openai.recognize(MagicMock(spec=Recognizer), audio_data)
@@ -73,7 +73,7 @@ def test_transcribe_with_gpt_transcribe(setenv_openai_api_key):
     audio_data.get_wav_data.return_value = b"audio_data"
 
     with (
-        openai_sdk.DefaultHttpx2Client(transport=transport) as http_client,
+        httpx2.Client(transport=transport) as http_client,
         patch("openai.OpenAI", return_value=openai_sdk.OpenAI(http_client=http_client)),
     ):
         actual = openai.recognize(
@@ -108,7 +108,7 @@ def test_transcribe_with_specified_language(setenv_openai_api_key):
     audio_data.get_wav_data.return_value = b"english_audio"
 
     with (
-        openai_sdk.DefaultHttpx2Client(transport=transport) as http_client,
+        httpx2.Client(transport=transport) as http_client,
         patch("openai.OpenAI", return_value=openai_sdk.OpenAI(http_client=http_client)),
     ):
         actual = openai.recognize(MagicMock(spec=Recognizer), audio_data, language="en")
@@ -141,7 +141,7 @@ def test_transcribe_with_specified_prompt(setenv_openai_api_key):
     audio_data.get_wav_data.return_value = b"audio_data"
 
     with (
-        openai_sdk.DefaultHttpx2Client(transport=transport) as http_client,
+        httpx2.Client(transport=transport) as http_client,
         patch("openai.OpenAI", return_value=openai_sdk.OpenAI(http_client=http_client)),
     ):
         actual = openai.recognize(
