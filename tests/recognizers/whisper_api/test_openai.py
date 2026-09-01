@@ -15,7 +15,11 @@ def setenv_openai_api_key(monkeypatch):
 
 
 def test_transcribe_with_openai_whisper(setenv_openai_api_key):
+    # ref: https://github.com/openai/openai-agents-python/blob/v0.22.0/tests/models/test_openai_responses.py#L81
+    requests: list[httpx2.Request] = []
+
     def handler(request: httpx2.Request) -> httpx2.Response:
+        requests.append(request)
         assert request.method == "POST"
         assert request.url == "https://api.openai.com/v1/audio/transcriptions"
         assert request.headers["Authorization"] == "Bearer sk_openai_api_key"
@@ -40,11 +44,15 @@ def test_transcribe_with_openai_whisper(setenv_openai_api_key):
         actual = openai.recognize(MagicMock(spec=Recognizer), audio_data)
 
     assert actual == "Transcription by OpenAI Whisper"
+    assert len(requests) == 1
     audio_data.get_wav_data.assert_called_once()
 
 
 def test_transcribe_with_gpt_transcribe(setenv_openai_api_key):
+    requests: list[httpx2.Request] = []
+
     def handler(request: httpx2.Request) -> httpx2.Response:
+        requests.append(request)
         assert request.method == "POST"
         assert request.url == "https://api.openai.com/v1/audio/transcriptions"
         assert b'name="model"' in request.content
@@ -73,12 +81,16 @@ def test_transcribe_with_gpt_transcribe(setenv_openai_api_key):
         )
 
     assert actual == "Transcription by GPT Transcribe"
+    assert len(requests) == 1
     audio_data.get_wav_data.assert_called_once()
 
 
 def test_transcribe_with_specified_language(setenv_openai_api_key):
     # https://github.com/Uberi/speech_recognition/issues/681
+    requests: list[httpx2.Request] = []
+
     def handler(request: httpx2.Request) -> httpx2.Response:
+        requests.append(request)
         assert request.method == "POST"
         assert request.url == "https://api.openai.com/v1/audio/transcriptions"
         assert b'name="language"' in request.content
@@ -102,11 +114,15 @@ def test_transcribe_with_specified_language(setenv_openai_api_key):
         actual = openai.recognize(MagicMock(spec=Recognizer), audio_data, language="en")
 
     assert actual == "English transcription"
+    assert len(requests) == 1
 
 
 def test_transcribe_with_specified_prompt(setenv_openai_api_key):
+    requests: list[httpx2.Request] = []
+
     # https://github.com/Uberi/speech_recognition/pull/676
     def handler(request: httpx2.Request) -> httpx2.Response:
+        requests.append(request)
         assert request.method == "POST"
         assert request.url == "https://api.openai.com/v1/audio/transcriptions"
         assert b'name="prompt"' in request.content
@@ -135,3 +151,4 @@ def test_transcribe_with_specified_prompt(setenv_openai_api_key):
         )
 
     assert actual == "Prompted transcription"
+    assert len(requests) == 1
