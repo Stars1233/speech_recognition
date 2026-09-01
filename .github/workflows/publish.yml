@@ -1,5 +1,8 @@
 name: Publish Python Package
 
+env:
+  PIP_INDEX_URL: https://pypi.flatt.tech/simple/
+
 on:
   release:
     types: [published]
